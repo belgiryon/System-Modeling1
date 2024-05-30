@@ -1,0 +1,10 @@
+function x = systemeqv(a, k)
+% Generating a random number from a логистического распределения with parameters
+% a и k
+
+% Random number generation by логистического распределения
+r = rand; % генерация равномерно распределенного числа
+% fonksiyonu [0, 1] aralığında rastgele bir sayı üretir ve bu değeri r değişkenine atar.
+x = a + k * log(r / (1 - r)); % генерация случайного наблюдения
+
+% Функция возвращает случайное число из логистического распределения

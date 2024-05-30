@@ -1,0 +1,116 @@
+% Strategic and tactical planning of a model experiment
+clear all;
+nf = 2; % number of factors in the experimental design
+minf = [-2 3]; % minimum value of factors a and k
+maxf = [4 4]; % maximum value of factors a and k
+
+% Strategic planning of the experiment
+% Formation of a fractional two-level experimental plan to take into account interactions
+
+fracfact('a b ab'); 
+% form a list of possible interactions
+% calculation of the total number of points in the experimental design
+% (all possible combinations of factor levels)
+
+N = 2 ^ nf;
+fracplan = ans;
+
+% Let's form a matrix X with the addition of a column of dummy factor values
+fictfact = ones(N, 1); % ones - returns scalar 1, or a matrix of these ones
+X = [fictfact ans]'; % we form a transposed plan matrix with the addition of a fictitious factor
+
+fraceks = zeros(N, nf); % matrix (number of experiments x number of factors)
+for i = 1:nf
+    for j = 1:N
+        % Filling the matrix with values
+        fraceks(j,i) = minf(i) + (fracplan(j,i) + 1) * (maxf(i) - minf(i)) / 2;
+    end
+end
+
+% Tactical planning of the experiment
+
+d_mu = 0.08; % confidence interval
+alpha = 0.01; % significance level
+tkr_alpha = norminv(1 - alpha / 2); % t-critical
+
+% experiment results
+Y = zeros(1, N);
+for j = 1:N
+    % parameters for logistic distribution
+    a = fraceks(j, 1);
+    k = fraceks(j, 2);
+    
+    % Simulation of system functioning
+    u = zeros(1, 1);
+
+    i = 0;
+    while 1
+        i = i + 1;
+        u(i) = systemeqv(a, k);
+        if i == 1
+            u = [u; 0];
+            continue;
+        end
+        
+       % spread of response relative to the average value
+       % unbiased estimate
+        D = (1 / (length(u) - 1)) * sum((u - mean(u)).^2); 
+        u = [u; 0];
+        % Determination of the required number of tests for the problem of estimating the average
+        % assumption of normal error distribution
+        NE = ceil((tkr_alpha ^ 2) * D / d_mu ^ 2);
+        % the assumption of a normal distribution of errors may not be correct
+        % NE = ceil(D / (alpha * d_mu ^ 2)); 
+        % disp(NE);
+        if i >= NE
+            u(end) = [];
+            break;
+        end
+    end
+    % We calculate and write the experimental expectation based on a sample of observations
+    mx = mean(u);
+    Y(j) = mx;
+end
+
+% Regression analysis
+
+% Determination of regression coefficients
+C = X * X';
+b_ = inv(C) * X * Y';
+
+% Formation of dependence of the system response on a set of real values of factors
+A = minf(1):0.01:maxf(1);
+B = minf(2):0.01:maxf(2);
+[unused, N1] = size(A);
+[unused, N2] = size(B);
+
+Yc = zeros(N2, N1);
+Yo = zeros(N2, N1);
+for i = 1:N1
+    for j = 1:N2
+        an = 2 * (A(i) - minf(1)) / (maxf(1) - minf(1)) - 1;
+        bn = 2 * (B(j) - minf(2)) / (maxf(2) - minf(2)) - 1;
+        % Experimental response surface (linear regression)
+        Yc(j, i) = b_(1) + an * b_(2) + bn * b_(3) + an * bn * b_(4);
+        % Theoretical reaction surface
+        Yo(j, i) = A(i);
+    end
+end
+
+% Displaying Constraints in 3D Graphics
+[x, y] = meshgrid(A, B); % координата в двумерном пространстве
+figure;
+% Experimental reaction surface
+subplot(1, 2, 1), plot3(x, y, Yc);
+xlabel('fact a');
+ylabel('fact b');
+zlabel('Yc');
+title('System output');
+grid on;
+% Theoretical reaction surface
+subplot(1, 2, 2), plot3(x, y, Yo);
+xlabel('fact a');
+ylabel('fact b');
+zlabel('Yo');
+title('System output');
+grid on;
